@@ -46,7 +46,7 @@ describe('daemon-client', () => {
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringMatching(/\/status$/),
       expect.objectContaining({
-        headers: expect.objectContaining({ 'X-OpenCLI': '1' }),
+        headers: expect.objectContaining({ 'X-OpenCLI': expect.any(String) }),
       }),
     );
   });
@@ -66,7 +66,7 @@ describe('daemon-client', () => {
       expect.stringMatching(/\/shutdown$/),
       expect.objectContaining({
         method: 'POST',
-        headers: expect.objectContaining({ 'X-OpenCLI': '1' }),
+        headers: expect.objectContaining({ 'X-OpenCLI': expect.any(String) }),
       }),
     );
   });

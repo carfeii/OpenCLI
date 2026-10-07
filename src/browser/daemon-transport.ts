@@ -1,8 +1,15 @@
 import { DEFAULT_DAEMON_PORT, isIgnorableDaemonPortEnv, unsupportedDaemonPortEnvMessage } from '../constants.js';
+import { getOrCreateDaemonToken } from '../daemon-auth.js';
 
 const DAEMON_PORT = DEFAULT_DAEMON_PORT;
 const DAEMON_URL = `http://127.0.0.1:${DAEMON_PORT}`;
-const OPENCLI_HEADERS = { 'X-OpenCLI': '1' };
+
+// Read fresh per request rather than once at module load: the daemon (and
+// its token file) may not exist yet the first time this module is imported,
+// e.g. before the daemon has been auto-spawned.
+function openCliHeaders(): Record<string, string> {
+  return { 'X-OpenCLI': getOrCreateDaemonToken() };
+}
 
 class UnsupportedDaemonPortEnvError extends Error {
   constructor(value: string) {
@@ -58,7 +65,7 @@ export async function requestDaemon(pathname: string, init?: RequestInit & { tim
   try {
     return await fetch(`${DAEMON_URL}${pathname}`, {
       ...rest,
-      headers: { ...OPENCLI_HEADERS, ...headers },
+      headers: { ...openCliHeaders(), ...headers },
       signal: controller.signal,
     });
   } finally {

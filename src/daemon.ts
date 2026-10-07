@@ -26,6 +26,7 @@ import { DEFAULT_DAEMON_PORT, isIgnorableDaemonPortEnv, unsupportedDaemonPortEnv
 import { EXIT_CODES } from './errors.js';
 import { log } from './logger.js';
 import { PKG_VERSION } from './version.js';
+import { getOrCreateDaemonToken, isValidDaemonToken } from './daemon-auth.js';
 import { DEFAULT_CONTEXT_ID } from './browser/profile.js';
 import { recordExtensionVersion } from './update-check.js';
 import {
@@ -44,6 +45,7 @@ import {
 } from './session-lease.js';
 
 const PORT = DEFAULT_DAEMON_PORT;
+const DAEMON_TOKEN = getOrCreateDaemonToken();
 if (!isIgnorableDaemonPortEnv(process.env.OPENCLI_DAEMON_PORT)) {
   log.error(unsupportedDaemonPortEnvMessage(process.env.OPENCLI_DAEMON_PORT));
   process.exit(EXIT_CODES.USAGE_ERROR);
@@ -280,12 +282,16 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     return;
   }
 
-  // Require custom header on all other HTTP requests.  Browsers cannot attach
-  // custom headers in "simple" requests, and our preflight returns no
-  // Access-Control-Allow-Headers, so scripted fetch() from web pages is
-  // blocked even if Origin check is somehow bypassed.
-  if (!req.headers['x-opencli']) {
-    jsonResponse(res, 403, { ok: false, error: 'Forbidden: missing X-OpenCLI header' });
+  // Require the X-OpenCLI header to carry the daemon's own pairing token, not
+  // merely be present. A fixed/guessable value here only stops a browser page
+  // (blocked by the preflight/CORS rules above from ever attaching a custom
+  // header), not an arbitrary local process, which is free to set any header
+  // value it likes in a raw HTTP request. The token is generated per-daemon
+  // and stored owner-only under USER_OPENCLI_DIR; only a caller that can read
+  // that file (the real opencli CLI, or another local process already running
+  // as this same user) can authenticate.
+  if (!isValidDaemonToken(req.headers['x-opencli'], DAEMON_TOKEN)) {
+    jsonResponse(res, 403, { ok: false, error: 'Forbidden: invalid X-OpenCLI token' });
     return;
   }
 

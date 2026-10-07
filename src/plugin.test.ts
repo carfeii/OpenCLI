@@ -532,6 +532,14 @@ describe('uninstallPlugin', () => {
   it('throws for non-existent plugin', () => {
     expect(() => uninstallPlugin('__nonexistent__')).toThrow('not installed');
   });
+
+  it('rejects a traversal name instead of deleting outside PLUGINS_DIR', () => {
+    expect(() => uninstallPlugin('../../etc')).toThrow('Invalid plugin name');
+  });
+
+  it('rejects a name containing a path separator', () => {
+    expect(() => uninstallPlugin('a/../../b')).toThrow('Invalid plugin name');
+  });
 });
 
 describe('updatePlugin', () => {
